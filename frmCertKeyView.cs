@@ -13,16 +13,20 @@ namespace CertKeyView
     {
         public class ComboBoxItem
         {
-            public ComboBoxItem(string txt, string val)
+            public ComboBoxItem(string txt, string val, int location)
             {
                 _text = txt;
                 _value = val;
+                _location = location;
             }
 
             private string _text = null;
             private object _value = null;
+            private int _location = 0;
+
             public string Text { get { return this._text; } set { this._text = value; } }
             public object Value { get { return this._value; } set { this._value = value; } }
+            public int Location { get { return this._location; } set { this._location = value; } }
             public override string ToString()
             {
                 return this._text;
@@ -58,7 +62,16 @@ namespace CertKeyView
             foreach (X509Certificate2 certificate in store.Certificates)
             {
                 string name = certificate.GetNameInfo(X509NameType.SimpleName, false);
-                cboCertList.Items.Add(new ComboBoxItem(name, name));
+                cboCertList.Items.Add(new ComboBoxItem(name, name, 1));
+            }
+            store.Close();
+
+            store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadOnly);
+            foreach (X509Certificate2 certificate in store.Certificates)
+            {
+                string name = certificate.GetNameInfo(X509NameType.SimpleName, false);
+                cboCertList.Items.Add(new ComboBoxItem(name, name, 2));
             }
             store.Close();
         }
@@ -70,43 +83,61 @@ namespace CertKeyView
 
         private void OnSelectedItemRefresh()
         {
-            string cert = (cboCertList.SelectedItem as ComboBoxItem).Value as string;
+            ComboBoxItem item = (cboCertList.SelectedItem as ComboBoxItem);
+            string cert = item.Value as string;
 
-            X509Store store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            X509Store store = null;
+            if( item.Location == 1 )
+                store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            else if(item.Location == 2)
+                store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadOnly);
             foreach (X509Certificate2 certificate in store.Certificates)
             {
                 string name = certificate.GetNameInfo(X509NameType.SimpleName, false);
                 if (name.Equals(cert))
                 {
-                    txtPrivateKey.Text = certificate.PrivateKey.ToXmlString(chkContainsPrivate.Checked);
-
                     string pubKeyStr = "";
-                    if (chkPubShowString.Checked)
-                    {
-                        //byte[] rawData = certificate.PublicKey.EncodedKeyValue.RawData;
-                        //if (rawData[5] == 0x81)
-                        //{
-                        //    byte[] rawData0 = rawData;
-                        //    rawData = new byte[128];
-                        //    Array.Copy(rawData0, 7, rawData, 0, 128);
-                        //}
-                        //else if (rawData[5] == 0x80)
-                        //{
-                        //    byte[] rawData0 = rawData;
-                        //    rawData = new byte[128];
-                        //    Array.Copy(rawData0, 6, rawData, 0, 128);
-                        //}
+                    string privateKeyStr = "";
 
-                        byte[] rawData = certificate.Export(X509ContentType.Cert);
-                        pubKeyStr = ByteArrayToHexString(rawData);
-                    }
-                    else
+                    try
                     {
-                        pubKeyStr = certificate.PublicKey.EncodedKeyValue.Format(false);
+                        if (certificate.PrivateKey != null)
+                            privateKeyStr = certificate.PrivateKey.ToXmlString(chkContainsPrivate.Checked);
+                        else
+                            privateKeyStr = "";
+
+                        if (chkPubShowString.Checked)
+                        {
+                            //byte[] rawData = certificate.PublicKey.EncodedKeyValue.RawData;
+                            //if (rawData[5] == 0x81)
+                            //{
+                            //    byte[] rawData0 = rawData;
+                            //    rawData = new byte[128];
+                            //    Array.Copy(rawData0, 7, rawData, 0, 128);
+                            //}
+                            //else if (rawData[5] == 0x80)
+                            //{
+                            //    byte[] rawData0 = rawData;
+                            //    rawData = new byte[128];
+                            //    Array.Copy(rawData0, 6, rawData, 0, 128);
+                            //}
+
+                            byte[] rawData = certificate.Export(X509ContentType.Cert);
+                            pubKeyStr = StringUtils.ByteArrayToHexString(rawData);
+                        }
+                        else
+                        {
+                            pubKeyStr = certificate.PublicKey.EncodedKeyValue.Format(false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("出现例外：" + ex.Message + "\r\n" + ex.StackTrace, "" + name, MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
 
                     txtPublicKey.Text = pubKeyStr;
+                    txtPrivateKey.Text = privateKeyStr;
                     break;
                 }
             }
@@ -123,53 +154,83 @@ namespace CertKeyView
             OnSelectedItemRefresh();
         }
 
-        #region ByteArrayToHexString 字节数组转换到十六制的字符串，例如：68 56 01 56 01 68
-        /// <summary>
-        /// 字节数组转换到十六制的字符串，例如：68 56 01 56 01 68
-        /// </summary>
-        /// <param name="data"></param>
-        /// <returns>例如：68 56 01 56 01 68</returns>
-        public static string ByteArrayToHexString(byte[] data)
+        private void btnGenerateCert_Click(object sender, EventArgs e)
         {
-            if (data == null)
-                return null;
-            return ByteArrayToHexString(data, 0, data.Length, '\0');
+            frmCertGenerate frm = new frmCertGenerate();
+            frm.ShowDialog(this);
+
+            int pos = cboCertList.SelectedIndex;
+            LoadCertificateList();
+            if (cboCertList.Items.Count < pos)
+            {
+                pos = cboCertList.Items.Count - 1;
+            }
+            if (pos >= 0)
+            {
+                cboCertList.SelectedIndex = pos;
+                OnSelectedItemRefresh();
+            }
         }
 
-        /// <summary>
-        /// 字节数组转换到十六制的字符串，例如：68 56 01 56 01 68
-        /// </summary>
-        /// <param name="data"></param>
-        /// <param name="splitChar">' ', ', ', 或者为空</param>
-        /// <returns>例如：68 56 01 56 01 68</returns>
-        public static string ByteArrayToHexString(byte[] data, char splitChar)
+        private void btnDelete_Click(object sender, EventArgs e)
         {
-            if (data == null)
-                return null;
+            ComboBoxItem item = (cboCertList.SelectedItem as ComboBoxItem);
+            string cert = item.Value as string;
 
-            return ByteArrayToHexString(data, 0, data.Length, splitChar);
+            X509Store store = null;
+            if (item.Location == 1)
+                store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            else if (item.Location == 2)
+                store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+
+            store.Open(OpenFlags.ReadWrite);
+            foreach (X509Certificate2 certificate in store.Certificates)
+            {
+                string name = certificate.GetNameInfo(X509NameType.SimpleName, false);
+                if (name.Equals(cert))
+                {
+                    store.Remove(certificate);
+                    break;
+                }
+            }
+            store.Close();
         }
 
-        /// <summary>
-        /// 字节数组转换到十六制的字符串，例如：68 56 01 56 01 68
-        /// </summary>
-        /// <param name="data"></param>
-        /// <param name="offset"></param>
-        /// <param name="len"></param>
-        /// <param name="splitChar">' ', ', ', 或者为空</param>
-        /// <returns>例如：68 56 01 56 01 68</returns>
-        public static string ByteArrayToHexString(byte[] data, int offset, int len, char splitChar)
+        private void btnExport_Click(object sender, EventArgs e)
         {
-            if (data == null)
-                return null;
+            ComboBoxItem item = (cboCertList.SelectedItem as ComboBoxItem);
+            string cert = item.Value as string;
 
-            string str = BitConverter.ToString(data, offset, len);
-            if (splitChar != '\0')
-                str = str.Replace('-', splitChar);
-            else
-                str = str.Replace("-", "");
-            return str.ToLower();
+            X509Store store = null;
+            if (item.Location == 1)
+                store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            else if (item.Location == 2)
+                store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+
+            store.Open(OpenFlags.ReadOnly);
+            foreach (X509Certificate2 certificate in store.Certificates)
+            {
+                string name = certificate.GetNameInfo(X509NameType.SimpleName, false);
+                if (name.Equals(cert))
+                {
+                    try
+                    {
+                        string str = CryptoUtils.ExportCertificate(certificate, chkEncryptExport.Checked);
+
+                        frmExportView dlg = new frmExportView();
+                        dlg.ShowText = str;
+                        dlg.Show(this);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("出现例外：" + ex.Message + "\r\n" + ex.StackTrace, "" + name, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    
+                    break;
+                }
+            }
+            store.Close();
         }
-        #endregion
+
     }
 }

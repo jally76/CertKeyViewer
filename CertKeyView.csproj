@@ -36,11 +36,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Certificate.cs" />
+    <Compile Include="Certificate2.cs" />
+    <Compile Include="CryptoUtils.cs" />
     <Compile Include="frmCertKeyView.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="frmCertKeyView.Designer.cs">
       <DependentUpon>frmCertKeyView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmExportView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmExportView.Designer.cs">
+      <DependentUpon>frmExportView.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -48,14 +57,23 @@
       <SubType>Designer</SubType>
       <DependentUpon>frmCertKeyView.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="frmExportView.resx">
+      <SubType>Designer</SubType>
+      <DependentUpon>frmExportView.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
+    <EmbeddedResource Include="frmCertGenerate.resx">
+      <DependentUpon>frmCertGenerate.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -66,6 +84,13 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <Compile Include="frmCertGenerate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCertGenerate.Designer.cs">
+      <DependentUpon>frmCertGenerate.cs</DependentUpon>
+    </Compile>
+    <Compile Include="StringUtils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
